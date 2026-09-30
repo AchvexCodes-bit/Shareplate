@@ -9,17 +9,6 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: shareplate
-          POSTGRES_PASSWORD: shareplate
-          POSTGRES_DB: shareplate
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U shareplate -d shareplate"
-          --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,13 +17,11 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Django system checks
         env:
-          DATABASE_URL: postgresql://shareplate:shareplate@localhost:5432/shareplate
           DJANGO_SECRET_KEY: ci-only-secret
           DEBUG: 'False'
         run: python manage.py check --deploy
       - name: Migration consistency
         env:
-          DATABASE_URL: postgresql://shareplate:shareplate@localhost:5432/shareplate
           DJANGO_SECRET_KEY: ci-only-secret
           DEBUG: 'False'
         run: |
@@ -42,7 +29,6 @@ jobs:
           python manage.py migrate --noinput
       - name: Automated tests
         env:
-          DATABASE_URL: postgresql://shareplate:shareplate@localhost:5432/shareplate
           DJANGO_SECRET_KEY: ci-only-secret
           DEBUG: 'False'
         run: python manage.py test core --verbosity=2
