@@ -1,9 +1,9 @@
 {
   "name": "shareplate",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {"dev":"next dev","build":"next build","start":"next start","lint":"next lint","db:generate":"prisma generate","db:migrate":"prisma migrate dev","db:seed":"tsx prisma/seed.ts"},
-  "dependencies": {"@prisma/client":"^6.16.2","bcryptjs":"^3.0.2","lucide-react":"^0.468.0","next":"^15.5.4","react":"^19.1.0","react-dom":"^19.1.0","zod":"^4.1.8"},
-  "devDependencies": {"@types/node":"^22.15.0","@types/react":"^19.1.0","@types/react-dom":"^19.1.0","prisma":"^6.16.2","tailwindcss":"^4.1.13","tsx":"^4.19.2","typescript":"^5.9.2"},
+  "dependencies": {"@prisma/client":"^6.16.2","bcryptjs":"^3.0.2","lucide-react":"^0.468.0","leaflet":"^1.9.4","react-leaflet":"^5.0.0","recharts":"^3.2.1","next":"^15.5.4","react":"^19.1.0","react-dom":"^19.1.0","zod":"^4.1.8"},
+  "devDependencies": {"@types/leaflet":"^1.9.20","@types/node":"^22.15.0","@types/react":"^19.1.0","@types/react-dom":"^19.1.0","prisma":"^6.16.2","tailwindcss":"^4.1.13","tsx":"^4.19.2","typescript":"^5.9.2"},
   "engines":{"node":">=20"}
 }
