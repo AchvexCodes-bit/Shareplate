@@ -5,6 +5,7 @@ urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('listings/', views.listings, name='listings'),
     path('listings/<int:pk>/reserve/', views.reserve, name='reserve'),
+    path('reservations/<int:pk>/cancel/', views.cancel_reservation_view, name='cancel_reservation'),
     path('courier/', views.courier_dashboard, name='courier'),
     path('courier/<int:pk>/<str:action>/', views.pickup_action, name='pickup_action'),
     path('notifications/', views.notifications, name='notifications'),
