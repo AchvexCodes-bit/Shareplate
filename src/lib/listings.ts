@@ -1,12 +1,10 @@
+import crypto from 'node:crypto';
 import { db } from './db';
 
 export async function reserveListing(listingId:string, organizationId:string, requestedById:string, quantity:number, start:Date,end:Date){
  if(!Number.isInteger(quantity)||quantity<=0) throw new Error('Quantity must be a positive whole number.');
  return db.$transaction(async tx=>{
-  const [listing,org]=await Promise.all([
-   tx.foodListing.findUnique({where:{id:listingId}}),
-   tx.organization.findUnique({where:{id:organizationId},select:{verificationStatus:true,accountStatus:true,type:true}})
-  ]);
+  const [listing,org]=await Promise.all([tx.foodListing.findUnique({where:{id:listingId}}),tx.organization.findUnique({where:{id:organizationId},select:{verificationStatus:true,accountStatus:true}})]);
   if(!org||org.verificationStatus!=='APPROVED'||org.accountStatus!=='ACTIVE') throw new Error('Your organization must be verified and active before making reservations.');
   if(!listing) throw new Error('Listing not found.');
   if(!['PUBLISHED','PARTIALLY_RESERVED'].includes(listing.status)) throw new Error('This listing is not accepting reservations.');
@@ -31,8 +29,8 @@ export async function cancelReservation(reservationId:string, organizationId:str
   const listing=await tx.foodListing.findUnique({where:{id:reservation.listingId}}); if(!listing) throw new Error('Listing not found.');
   await tx.reservation.update({where:{id:reservationId},data:{status:'CANCELLED',cancelledAt:new Date()}});
   const reserved=Math.max(0,listing.quantityReserved-reservation.quantity);
-  const available=listing.quantityListed-reserved-listing.quantityCollected;
-  await tx.foodListing.update({where:{id:listing.id},data:{quantityReserved:reserved,status:available>0?'PARTIALLY_RESERVED':'FULLY_RESERVED'}});
+  const status=reserved===0?'PUBLISHED':reserved+listing.quantityCollected>=listing.quantityListed?'FULLY_RESERVED':'PARTIALLY_RESERVED';
+  await tx.foodListing.update({where:{id:listing.id},data:{quantityReserved:reserved,status}});
   return {ok:true};
  },{isolationLevel:'Serializable'});
 }
