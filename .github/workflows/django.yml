@@ -1,9 +1,11 @@
 name: SharePlate Django CI
+
 on:
   push:
     branches: [django-migration]
   pull_request:
     branches: [main]
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -21,19 +23,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: '3.12'}
+        with:
+          python-version: '3.12'
       - run: pip install -r requirements.txt
       - name: Django system checks
         env:
           DATABASE_URL: postgresql://shareplate:shareplate@localhost:5432/shareplate
           DJANGO_SECRET_KEY: ci-only-secret
-          DEBUG: 'True'
-        run: python manage.py check
+          DEBUG: 'False'
+        run: python manage.py check --deploy
       - name: Migration consistency
         env:
           DATABASE_URL: postgresql://shareplate:shareplate@localhost:5432/shareplate
           DJANGO_SECRET_KEY: ci-only-secret
-          DEBUG: 'True'
+          DEBUG: 'False'
         run: |
-          python manage.py makemigrations core --noinput
+          python manage.py makemigrations core --check --dry-run
           python manage.py migrate --noinput
+      - name: Automated tests
+        env:
+          DATABASE_URL: postgresql://shareplate:shareplate@localhost:5432/shareplate
+          DJANGO_SECRET_KEY: ci-only-secret
+          DEBUG: 'False'
+        run: python manage.py test core --verbosity=2
