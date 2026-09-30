@@ -2,55 +2,52 @@
 
 **Good food deserves another table.**
 
-SharePlate is a surplus food redistribution platform connecting food partners with verified recipient organizations.
+SharePlate connects food partners with verified recipient organizations so safe surplus food can be collected instead of unnecessarily discarded.
 
-## Part 1 + Part 2
+## Current implementation
 
-The current foundation includes:
-- Role-based authentication and organization verification
-- PostgreSQL + Prisma relational data model
-- Food listings, safety records and expiry handling
-- Transaction-safe reservation and cancellation rules
-- Courier assignment and mobile pickup workflow
-- Validated pickup state transitions with history
-- Collection and delivery quantity reconciliation
-- Notifications and incident/complaint workflow
-- Database-backed impact aggregation
-- Admin operations center and operational alerts
-- CSV reporting
-- Explainable recipient matching
-- Leaflet/OpenStreetMap network map
-- Reusable saved-food records
-- Audit logging and object-level authorization helpers
-- Responsive, accessibility-conscious UI
+The repository originally used Next.js + Prisma. A simpler **Python + Django + PostgreSQL** implementation is now being developed on the `django-migration` branch.
 
-## Operational flow
+### Django stack
 
-`Listing → Reservation → Pickup Assignment → Accepted → En Route → Arrived → Collected → Delivered → Completed`
-
-Every important operational transition is persisted. Reservations affect inventory inside database transactions, and completed pickups create impact records.
-
-## Stack
-
-- Next.js 15 / React 19
-- TypeScript
-- Tailwind CSS
+- Python 3.12+
+- Django 5.2
 - PostgreSQL
-- Prisma ORM
-- Secure HTTP-only sessions
-- Leaflet + OpenStreetMap
-- Recharts dependency for analytics extensions
+- Django ORM
+- Django authentication and sessions
+- Django Admin
+- Server-rendered templates
 
-## Development
+### Core workflows
+
+- Organization verification
+- Food listings
+- Transaction-safe reservations
+- Inventory remaining quantity
+- Courier pickup workflow
+- Collection and delivery quantities
+- Pickup status history
+- Impact records
+- Notifications
+- Complaints
+- Immutable-style audit records through Django Admin read-only fields
+
+### Run locally
 
 ```bash
-npm install
-npx prisma generate
-npx prisma migrate dev
-npm run db:seed
-npm run dev
+python -m venv .venv
+# Windows: .venv\\Scripts\\activate
+# Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
 ```
 
-Set `DATABASE_URL` and `AUTH_SECRET` in the environment. Use a non-production seed credential through `SEED_PASSWORD` when running the demo seed.
+Set `DATABASE_URL` to your PostgreSQL database. Do not commit `.env` or production secrets.
 
-Food providers remain responsible for complying with applicable food-safety requirements. SharePlate does not guarantee food safety.
+## Food-safety note
+
+SharePlate provides operational information and does not guarantee food safety. Food providers remain responsible for complying with applicable food-safety requirements.
