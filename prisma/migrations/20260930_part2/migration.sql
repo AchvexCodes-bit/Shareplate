@@ -5,7 +5,6 @@ ALTER TYPE "PickupStatus" ADD VALUE IF NOT EXISTS 'ARRIVED';
 ALTER TYPE "PickupStatus" ADD VALUE IF NOT EXISTS 'RESCHEDULED';
 ALTER TYPE "ComplaintStatus" ADD VALUE IF NOT EXISTS 'ACTION_REQUIRED';
 DO $$ BEGIN CREATE TYPE "PickupCondition" AS ENUM ('GOOD','ACCEPTABLE','DAMAGED','CONCERNING'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "courierId" TEXT;
 ALTER TABLE "PickupRequest" ADD COLUMN IF NOT EXISTS "expectedQuantity" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "PickupRequest" ADD COLUMN IF NOT EXISTS "collectedQuantity" INTEGER;
 ALTER TABLE "PickupRequest" ADD COLUMN IF NOT EXISTS "deliveredQuantity" INTEGER;
@@ -39,7 +38,6 @@ CREATE TABLE IF NOT EXISTS "SavedFood" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "SavedFood_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX IF NOT EXISTS "User_courierId_key" ON "User"("courierId");
 CREATE UNIQUE INDEX IF NOT EXISTS "SavedFood_organizationId_name_key" ON "SavedFood"("organizationId","name");
 CREATE INDEX IF NOT EXISTS "SavedFood_organizationId_idx" ON "SavedFood"("organizationId");
 CREATE INDEX IF NOT EXISTS "Address_latitude_longitude_idx" ON "Address"("latitude","longitude");
@@ -55,7 +53,6 @@ CREATE INDEX IF NOT EXISTS "Complaint_status_createdAt_idx" ON "Complaint"("stat
 CREATE INDEX IF NOT EXISTS "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
 CREATE INDEX IF NOT EXISTS "ImpactRecord_recordedAt_idx" ON "ImpactRecord"("recordedAt");
 CREATE INDEX IF NOT EXISTS "ImpactRecord_organizationId_recordedAt_idx" ON "ImpactRecord"("organizationId","recordedAt");
-DO $$ BEGIN ALTER TABLE "User" ADD CONSTRAINT "User_courierId_fkey" FOREIGN KEY ("courierId") REFERENCES "Courier"("id") ON DELETE SET NULL ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE "SavedFood" ADD CONSTRAINT "SavedFood_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE "SavedFood" ADD CONSTRAINT "SavedFood_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "FoodCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE "ImpactRecord" ADD CONSTRAINT "ImpactRecord_pickupId_key" UNIQUE ("pickupId"); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
