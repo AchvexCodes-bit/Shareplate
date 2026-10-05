@@ -5,7 +5,6 @@ from django.utils import timezone
 
 from .models import (
     DeliveryConfirmation,
-    Membership,
     Organization,
     FoodCategory,
     FoodListing,
@@ -261,7 +260,8 @@ class WorkflowTests(TestCase):
         transition_pickup(pickup_id=pickup_two.id, to_status="COMPLETED", user=courier_user_two)
 
         self.listing.refresh_from_db()
-        self.assertEqual(self.listing.status, "COMPLETED")
+        self.assertEqual(self.listing.status, "PUBLISHED")
+        self.assertEqual(self.listing.remaining, 10)
 
     def test_full_listing_is_not_shown_as_available(self):
         self.listing.status = "FULL"
