@@ -22,7 +22,7 @@ PICKUP_TRANSITIONS = {
     "EN_ROUTE": {"ARRIVED", "ISSUE"},
     "ARRIVED": {"COLLECTED", "ISSUE"},
     "COLLECTED": {"DELIVERED", "ISSUE"},
-    "DELIVERED": {"COMPLETED", "ISSUE"},
+    "DELIVERED": {"ISSUE"},
     "COMPLETED": set(),
     "CANCELLED": set(),
     "ISSUE": {"ASSIGNED", "RESCHEDULED"},
@@ -251,8 +251,7 @@ def transition_pickup(
         listing.save(update_fields=["updated_at"])
 
     elif to_status == "COMPLETED":
-        if pickup.status != "DELIVERED" or pickup.delivered_quantity is None:
-            raise ValueError("A delivered quantity is required before completing the pickup.")
+        raise ValueError("The recipient must confirm delivery before the pickup can be completed.")
 
         reservation.status = "COMPLETED"
         reservation.save(update_fields=["status", "updated_at"])
