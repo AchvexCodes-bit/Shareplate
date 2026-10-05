@@ -38,6 +38,7 @@ class WorkflowTests(TestCase):
             available_from=now,
             available_until=now + timedelta(hours=2),
             storage_condition="HOT_HOLD",
+            status="PUBLISHED",
         )
 
     def test_reservation_cannot_overbook(self):
