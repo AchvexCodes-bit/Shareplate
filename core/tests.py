@@ -134,16 +134,17 @@ class WorkflowTests(TestCase):
             user=courier_user,
             delivered_quantity=5,
         )
-        transition_pickup(
-            pickup_id=pickup.id,
-            to_status="COMPLETED",
-            user=courier_user,
-        )
+        with self.assertRaises(ValueError):
+            transition_pickup(
+                pickup_id=pickup.id,
+                to_status="COMPLETED",
+                user=courier_user,
+            )
 
         pickup.refresh_from_db()
         reservation.refresh_from_db()
-        self.assertEqual(pickup.status, "COMPLETED")
-        self.assertEqual(reservation.status, "COMPLETED")
+        self.assertEqual(pickup.status, "DELIVERED")
+        self.assertEqual(reservation.status, "RECEIVED")
         self.assertEqual(DeliveryConfirmation.objects.count(), 0)
 
 
@@ -251,7 +252,12 @@ class WorkflowTests(TestCase):
         )
 
         self._advance_to_delivered(pickup_one, courier_user_one, 5)
-        transition_pickup(pickup_id=pickup_one.id, to_status="COMPLETED", user=courier_user_one)
+        with self.assertRaises(ValueError):
+            transition_pickup(
+                pickup_id=pickup_one.id,
+                to_status="COMPLETED",
+                user=courier_user_one,
+            )
 
         self.listing.refresh_from_db()
         self.assertNotEqual(self.listing.status, "COMPLETED")
