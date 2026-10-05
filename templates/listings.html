@@ -1,34 +1,32 @@
 {% extends "base.html" %}
+{% block title %}Food Network · SharePlate{% endblock %}
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
-  <div><h1>Available food</h1><p class="muted">Verified partners can share safe surplus food with recipient organizations.</p></div>
+<div class="hero">
+  <div style="position:relative;z-index:1;max-width:760px">
+    <div class="eyebrow">Food network</div>
+    <h1>Good food deserves another table.</h1>
+    <p class="muted">Discover verified surplus listings, check availability and reserve what your organization can use.</p>
+  </div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
+  <div><h2 style="margin:0">Available food</h2><p class="muted">Updated from live SharePlate listings.</p></div>
   {% if user.is_superuser %}<a class="btn" href="{% url 'dashboard' %}">Operations dashboard</a>{% endif %}
 </div>
-<form method="get" style="margin:18px 0">
-<input name="q" value="{{ request.GET.q }}" placeholder="Search food or category" style="width:70%">
-<button class="btn">Search</button>
-</form>
-
+<form method="get" style="margin:18px 0"><input name="q" value="{{ request.GET.q }}" placeholder="Search food or category"><div class="actions"><button class="btn">Search food</button></div></form>
 <div class="grid">
 {% for item in listings %}
 <article class="card">
-<span class="status">{{ item.get_status_display }}</span>
-<h3>{{ item.name }}</h3>
+<span class="status">{{ item.get_status_display }}</span><h3>{{ item.name }}</h3>
 <p class="muted">{{ item.organization.name }} · {{ item.category.name }}</p>
 <p>{{ item.description|default:"No description provided." }}</p>
 <p><b>{{ item.remaining }}</b> {{ item.get_unit_display|lower }} available · {{ item.servings }} serving{{ item.servings|pluralize }} per unit</p>
 <p class="small muted">Available until {{ item.available_until|date:"d M Y · H:i" }}</p>
 {% if user.memberships.first.role == "RECIPIENT" %}
-<form method="post" action="{% url 'reserve' item.id %}">
-{% csrf_token %}
-<div class="actions"><input type="number" name="quantity" min="1" max="{{ item.remaining }}" value="1" style="width:90px"><button class="btn">Reserve food</button></div>
+<form method="post" action="{% url 'reserve' item.id %}">{% csrf_token %}
+<div class="actions"><input type="number" name="quantity" min="1" max="{{ item.remaining }}" value="1" style="max-width:100px"><button class="btn">Reserve food</button></div>
 </form>
-{% else %}
-<p class="small muted">Sign in with a recipient account to reserve this listing.</p>
-{% endif %}
+{% else %}<p class="small muted">Sign in with a recipient account to reserve this listing.</p>{% endif %}
 </article>
-{% empty %}
-<div class="card"><h3>No food available</h3><p class="muted">Safe surplus food will appear here when partners publish listings.</p></div>
-{% endfor %}
+{% empty %}<div class="card"><h3>No food available</h3><p class="muted">Safe surplus food will appear here when partners publish listings.</p></div>{% endfor %}
 </div>
 {% endblock %}
