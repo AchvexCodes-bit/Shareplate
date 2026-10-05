@@ -1,1 +1,17 @@
-{% extends 'base.html' %}{% block content %}<div class="card" style="max-width:420px;margin:50px auto"><h1>Sign in</h1><form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn" type="submit">Sign in</button></form></div>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:460px;margin:50px auto">
+<h1>Sign in</h1>
+<p class="muted">Use your SharePlate account to open the correct role workspace.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn" type="submit">Sign in</button></form>
+<hr style="border:0;border-top:1px solid #eee;margin:22px 0">
+<h3>Demo accounts</h3>
+<p class="small muted">Password for all: <b>Demo@12345</b></p>
+<div class="small">
+<p><b>Admin</b> · demo_admin</p>
+<p><b>Food Partner</b> · demo_donor</p>
+<p><b>Recipient</b> · demo_recipient</p>
+<p><b>Courier</b> · demo_courier</p>
+</div>
+</div>
+{% endblock %}
