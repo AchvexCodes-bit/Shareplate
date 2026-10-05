@@ -5,20 +5,42 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SharePlate</title>
 <style>
-body{font-family:Inter,system-ui,sans-serif;margin:0;background:#f7f5ef;color:#242622;min-height:100vh;display:flex;flex-direction:column}
-nav{background:#fff;border-bottom:1px solid #e5e2d9;padding:14px 5%;display:flex;gap:22px;align-items:center}
-nav a{color:#242622;text-decoration:none}.brand{font-weight:800;margin-right:auto}
-.wrap{width:100%;max-width:1100px;margin:32px auto;padding:0 20px;box-sizing:border-box;flex:1}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
-.card{background:#fff;border:1px solid #e7e4dc;border-radius:14px;padding:20px;box-shadow:0 4px 18px #00000008}
-.muted{color:#73756f}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;background:#3f6b4d;color:#fff;text-decoration:none;cursor:pointer}.danger{background:#a23c35}.msg{padding:12px;border-radius:9px;background:#edf4ed;margin:10px 0}
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;margin:0;background:#f7f5ef;color:#242622;min-height:100vh;display:flex;flex-direction:column}
+nav{background:#fff;border-bottom:1px solid #e5e2d9;padding:14px 5%;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+nav a{color:#242622;text-decoration:none}.brand{font-weight:800;margin-right:auto}.role{font-size:11px;padding:5px 8px;border-radius:999px;background:#edf3ec;color:#3f6b4d}
+.wrap{width:100%;max-width:1160px;margin:32px auto;padding:0 20px;flex:1}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.card{background:#fff;border:1px solid #e7e4dc;border-radius:14px;padding:20px;box-shadow:0 4px 18px #00000008}.muted{color:#73756f}
+.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;background:#3f6b4d;color:#fff;text-decoration:none;cursor:pointer}.btn.secondary{background:#ecebe5;color:#363932}.btn.danger{background:#a23c35}.btn.warn{background:#a16d2a}
+.msg{padding:12px;border-radius:9px;background:#edf4ed;margin:10px 0}.msg.error{background:#faecea}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #d9d6cc;border-radius:9px;background:#fff;font:inherit}.field{margin:10px 0}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:5px}
+.small{font-size:12px}.status{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.section{margin-top:28px}
 .site-footer{padding:18px 20px 22px;text-align:center;color:#96958e;font-size:11px;letter-spacing:.02em}.site-footer span{opacity:.8}
-@media(max-width:700px){nav{overflow:auto;white-space:nowrap}.wrap{margin:20px auto}.grid{grid-template-columns:1fr}.site-footer{padding-bottom:18px}}
+@media(max-width:700px){nav{overflow:auto;white-space:nowrap;flex-wrap:nowrap}.wrap{margin:20px auto}.grid{grid-template-columns:1fr}.site-footer{padding-bottom:18px}}
 </style>
 </head>
 <body>
-<nav><a class="brand" href="{% url 'dashboard' %}">SharePlate</a><a href="{% url 'listings' %}">Food</a><a href="{% url 'courier' %}">Courier</a><a href="{% url 'notifications' %}">Notifications</a><a href="{% url 'impact' %}">Impact</a>{% if user.is_authenticated %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn" type="submit">Sign out</button></form>{% else %}<a class="btn" href="{% url 'login' %}">Sign in</a>{% endif %}</nav>
-<main class="wrap">{% for message in messages %}<div class="msg">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main>
+<nav>
+<a class="brand" href="{% url 'dashboard' %}">SharePlate</a>
+{% if user.is_authenticated %}
+<a href="{% url 'dashboard' %}">Dashboard</a>
+<a href="{% url 'listings' %}">Food</a>
+{% if user.memberships.all|length %}{% endif %}
+{% if user.is_superuser %}<a href="{% url 'dashboard' %}">Operations</a>{% endif %}
+{% with role=user.memberships.first.role %}
+{% if role == 'COURIER' or user.is_superuser %}<a href="{% url 'courier' %}">Courier</a>{% endif %}
+{% endwith %}
+<a href="{% url 'notifications' %}">Notifications</a>
+<a href="{% url 'impact' %}">Impact</a>
+<span class="role">{% if user.is_superuser %}ADMIN{% else %}{{ user.memberships.first.get_role_display|default:'USER' }}{% endif %}</span>
+<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn secondary" type="submit">Sign out</button></form>
+{% else %}
+<a class="btn" href="{% url 'login' %}">Sign in</a>
+{% endif %}
+</nav>
+<main class="wrap">
+{% for message in messages %}<div class="msg{% if message.tags %} {{ message.tags }}{% endif %}">{{ message }}</div>{% endfor %}
+{% block content %}{% endblock %}
+</main>
 <footer class="site-footer" aria-label="Application credit"><span>SharePlate · A product by Achvex Ltd</span></footer>
 </body>
 </html>
