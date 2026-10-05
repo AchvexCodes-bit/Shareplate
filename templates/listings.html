@@ -1,1 +1,34 @@
-{% extends 'base.html' %}{% block content %}<h1>Available food</h1><form method="get"><input name="q" value="{{ request.GET.q }}" placeholder="Search food" style="padding:11px;width:70%;border:1px solid #ddd;border-radius:9px"><button class="btn">Search</button></form><div class="grid" style="margin-top:20px">{% for item in listings %}<article class="card"><h3>{{ item.name }}</h3><p class="muted">{{ item.organization.name }} · {{ item.category.name }}</p><p><b>{{ item.remaining }}</b> {{ item.get_unit_display|lower }} available</p><p>Collection until {{ item.available_until|date:'d M, H:i' }}</p><form method="post" action="{% url 'reserve' item.id %}">{% csrf_token %}<input type="number" name="quantity" min="1" max="{{ item.remaining }}" value="1" style="padding:9px;width:80px"><button class="btn">Reserve</button></form></article>{% empty %}<div class="card"><h3>No food available</h3><p class="muted">Safe surplus food will appear here when partners publish listings.</p></div>{% endfor %}</div>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
+  <div><h1>Available food</h1><p class="muted">Verified partners can share safe surplus food with recipient organizations.</p></div>
+  {% if user.is_superuser %}<a class="btn" href="{% url 'dashboard' %}">Operations dashboard</a>{% endif %}
+</div>
+<form method="get" style="margin:18px 0">
+<input name="q" value="{{ request.GET.q }}" placeholder="Search food or category" style="width:70%">
+<button class="btn">Search</button>
+</form>
+
+<div class="grid">
+{% for item in listings %}
+<article class="card">
+<span class="status">{{ item.get_status_display }}</span>
+<h3>{{ item.name }}</h3>
+<p class="muted">{{ item.organization.name }} · {{ item.category.name }}</p>
+<p>{{ item.description|default:"No description provided." }}</p>
+<p><b>{{ item.remaining }}</b> {{ item.get_unit_display|lower }} available · {{ item.servings }} serving{{ item.servings|pluralize }} per unit</p>
+<p class="small muted">Available until {{ item.available_until|date:"d M Y · H:i" }}</p>
+{% if user.memberships.first.role == "RECIPIENT" %}
+<form method="post" action="{% url 'reserve' item.id %}">
+{% csrf_token %}
+<div class="actions"><input type="number" name="quantity" min="1" max="{{ item.remaining }}" value="1" style="width:90px"><button class="btn">Reserve food</button></div>
+</form>
+{% else %}
+<p class="small muted">Sign in with a recipient account to reserve this listing.</p>
+{% endif %}
+</article>
+{% empty %}
+<div class="card"><h3>No food available</h3><p class="muted">Safe surplus food will appear here when partners publish listings.</p></div>
+{% endfor %}
+</div>
+{% endblock %}
