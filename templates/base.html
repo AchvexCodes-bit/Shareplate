@@ -3,43 +3,51 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SharePlate</title>
+<meta name="theme-color" content="#163f2b">
+<title>{% block title %}SharePlate{% endblock %}</title>
 <style>
-*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;margin:0;background:#f7f5ef;color:#242622;min-height:100vh;display:flex;flex-direction:column}
-nav{background:#fff;border-bottom:1px solid #e5e2d9;padding:14px 5%;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
-nav a{color:#242622;text-decoration:none}.brand{font-weight:800;margin-right:auto}.role{font-size:11px;padding:5px 8px;border-radius:999px;background:#edf3ec;color:#3f6b4d}
-.wrap{width:100%;max-width:1160px;margin:32px auto;padding:0 20px;flex:1}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
-.card{background:#fff;border:1px solid #e7e4dc;border-radius:14px;padding:20px;box-shadow:0 4px 18px #00000008}.muted{color:#73756f}
-.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;background:#3f6b4d;color:#fff;text-decoration:none;cursor:pointer}.btn.secondary{background:#ecebe5;color:#363932}.btn.danger{background:#a23c35}.btn.warn{background:#a16d2a}
-.msg{padding:12px;border-radius:9px;background:#edf4ed;margin:10px 0}.msg.error{background:#faecea}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-input,select,textarea{width:100%;padding:10px;border:1px solid #d9d6cc;border-radius:9px;background:#fff;font:inherit}.field{margin:10px 0}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:5px}
-.small{font-size:12px}.status{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.section{margin-top:28px}
-.site-footer{padding:18px 20px 22px;text-align:center;color:#96958e;font-size:11px;letter-spacing:.02em}.site-footer span{opacity:.8}
-@media(max-width:700px){nav{overflow:auto;white-space:nowrap;flex-wrap:nowrap}.wrap{margin:20px auto}.grid{grid-template-columns:1fr}.site-footer{padding-bottom:18px}}
+:root{--ink:#17221c;--muted:#718078;--line:rgba(29,70,49,.10);--surface:rgba(255,255,255,.78);--green:#2f6d4f;--lime:#8dbb69;--red:#a9473f;--amber:#a86f27}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;color:var(--ink);min-height:100vh;display:flex;flex-direction:column;background:radial-gradient(circle at 8% 8%,rgba(126,176,112,.23),transparent 28%),radial-gradient(circle at 92% 12%,rgba(248,196,107,.18),transparent 26%),radial-gradient(circle at 72% 86%,rgba(95,145,112,.17),transparent 30%),linear-gradient(135deg,#f8f7f0 0%,#eef5ed 48%,#f7f1df 100%);background-attachment:fixed;overflow-x:hidden}
+body:before,body:after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(5px);pointer-events:none;opacity:.45;animation:float 12s ease-in-out infinite}
+body:before{width:300px;height:300px;left:-110px;top:18%;background:radial-gradient(circle,rgba(102,157,114,.28),transparent 68%)}
+body:after{width:360px;height:360px;right:-130px;bottom:4%;background:radial-gradient(circle,rgba(246,190,88,.22),transparent 68%);animation-delay:-5s}
+@keyframes float{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(18px,-22px,0) scale(1.05)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 rgba(77,133,92,0)}50%{box-shadow:0 0 32px rgba(77,133,92,.12)}}
+@keyframes shimmer{0%{transform:translateX(-110%)}100%{transform:translateX(110%)}}
+nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.75);backdrop-filter:blur(18px) saturate(140%);border-bottom:1px solid rgba(37,73,53,.10);padding:13px 5%;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+nav a{color:var(--ink);text-decoration:none;transition:.2s ease}nav a:not(.brand):hover{color:var(--green);transform:translateY(-1px)}
+.brand{font-weight:900;font-size:18px;letter-spacing:-.03em;margin-right:auto;display:flex;align-items:center;gap:9px}.brand:before{content:"";width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--lime),var(--green));box-shadow:0 0 0 5px rgba(92,143,87,.10)}
+.role{font-size:11px;font-weight:800;letter-spacing:.07em;padding:6px 10px;border-radius:999px;background:rgba(237,243,236,.9);color:var(--green);border:1px solid rgba(65,110,77,.12)}
+.wrap{width:100%;max-width:1160px;margin:0 auto;padding:34px 20px 45px;flex:1;animation:fadeUp .45s ease both}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:17px}
+.card{position:relative;overflow:hidden;background:rgba(255,255,255,.78);backdrop-filter:blur(15px);border:1px solid var(--line);border-radius:20px;padding:21px;box-shadow:0 16px 45px rgba(30,62,45,.08);transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
+.card:before{content:"";position:absolute;left:-30%;top:0;width:35%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);transform:translateX(-120%);pointer-events:none}.card:hover{transform:translateY(-5px);box-shadow:0 22px 52px rgba(30,62,45,.13);border-color:rgba(65,110,77,.18)}.card:hover:before{animation:shimmer .7s ease}
+.muted{color:var(--muted)}h1,h2,h3{letter-spacing:-.03em}h1{font-size:clamp(30px,5vw,48px);line-height:1.03;margin:0 0 8px}h2{font-size:26px}h3{margin-top:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:11px;padding:11px 15px;background:linear-gradient(135deg,var(--green),#4b815d);color:#fff;text-decoration:none;cursor:pointer;font:inherit;font-weight:700;box-shadow:0 9px 24px rgba(47,109,79,.18);transition:transform .2s ease,box-shadow .2s ease,filter .2s ease}.btn:hover{transform:translateY(-2px);box-shadow:0 13px 28px rgba(47,109,79,.25);filter:saturate(1.08)}.btn:active{transform:translateY(0)}.btn.secondary{background:rgba(239,239,232,.85);color:#3b433e;box-shadow:none;border:1px solid rgba(50,75,60,.08)}.btn.danger{background:linear-gradient(135deg,#9e4038,#bd5a50)}.btn.warn{background:linear-gradient(135deg,#a36b25,#c18a3e)}
+.msg{padding:13px 15px;border-radius:12px;background:rgba(237,244,237,.9);margin:0 0 11px;border:1px solid rgba(68,114,78,.10);animation:fadeUp .35s ease both}.msg.error{background:rgba(250,236,234,.95);border-color:rgba(169,71,63,.12)}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}input,select,textarea{width:100%;padding:11px 12px;border:1px solid rgba(45,76,57,.13);border-radius:11px;background:rgba(255,255,255,.84);font:inherit;color:var(--ink);outline:none;transition:.2s ease}input:focus,select:focus,textarea:focus{border-color:rgba(55,113,78,.45);box-shadow:0 0 0 4px rgba(82,140,94,.10);background:#fff}textarea{min-height:90px;resize:vertical}
+.field{margin:11px 0}.field label{display:block;font-size:13px;font-weight:750;margin-bottom:6px}.small{font-size:12px}.status{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--green)}.section{margin-top:32px}
+.hero{position:relative;border-radius:26px;overflow:hidden;margin-bottom:22px;padding:30px;background:radial-gradient(circle at 88% 18%,rgba(207,233,186,.45),transparent 28%),linear-gradient(135deg,rgba(26,73,49,.98),rgba(54,104,75,.93) 52%,rgba(92,134,78,.90));color:white;box-shadow:0 24px 60px rgba(24,68,45,.19);animation:pulseGlow 4s ease-in-out infinite}.hero:after{content:"";position:absolute;right:-65px;bottom:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(246,213,145,.23),transparent 68%)}.hero .eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.75;font-weight:800}.hero .muted{color:rgba(255,255,255,.74)}
+.kpi{background:rgba(255,255,255,.72);backdrop-filter:blur(12px)}.kpi h2{margin:8px 0 2px}.fade-delay-1{animation-delay:.08s}.fade-delay-2{animation-delay:.16s}.fade-delay-3{animation-delay:.24s}
+.site-footer{padding:18px 20px 24px;text-align:center;color:#7f8b83;font-size:11px;letter-spacing:.02em}.site-footer span{opacity:.85}
+@media(max-width:700px){nav{overflow:auto;white-space:nowrap;flex-wrap:nowrap;padding-left:4%;padding-right:4%}.wrap{padding:23px 15px 35px}.grid{grid-template-columns:1fr}.hero{padding:24px}.card{border-radius:17px;padding:18px}.site-footer{padding-bottom:18px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}}
 </style>
 </head>
 <body>
 <nav>
 <a class="brand" href="{% url 'dashboard' %}">SharePlate</a>
 {% if user.is_authenticated %}
-<a href="{% url 'dashboard' %}">Dashboard</a>
-<a href="{% url 'listings' %}">Food</a>
+<a href="{% url 'dashboard' %}">Dashboard</a><a href="{% url 'listings' %}">Food</a>
 {% if user.is_superuser %}<a href="{% url 'dashboard' %}">Operations</a>{% endif %}
-{% with role=user.memberships.first.role %}
-{% if role == 'COURIER' %}<a href="{% url 'courier' %}">Courier</a>{% endif %}
-{% endwith %}
-<a href="{% url 'notifications' %}">Notifications</a>
-<a href="{% url 'impact' %}">Impact</a>
+{% with role=user.memberships.first.role %}{% if role == 'COURIER' %}<a href="{% url 'courier' %}">Courier</a>{% endif %}{% endwith %}
+<a href="{% url 'notifications' %}">Notifications</a><a href="{% url 'impact' %}">Impact</a>
 <span class="role">{% if user.is_superuser %}ADMIN{% else %}{{ user.memberships.first.get_role_display|default:'USER' }}{% endif %}</span>
-<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn secondary" type="submit">Sign out</button></form>
-{% else %}
-<a class="btn" href="{% url 'login' %}">Sign in</a>
-{% endif %}
+<form method="post" action="{% url 'logout' %}" style="margin:0">{% csrf_token %}<button class="btn secondary" type="submit">Sign out</button></form>
+{% else %}<a class="btn" href="{% url 'login' %}">Sign in</a>{% endif %}
 </nav>
-<main class="wrap">
-{% for message in messages %}<div class="msg{% if message.tags %} {{ message.tags }}{% endif %}">{{ message }}</div>{% endfor %}
-{% block content %}{% endblock %}
-</main>
+<main class="wrap">{% for message in messages %}<div class="msg{% if message.tags %} {{ message.tags }}{% endif %}">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main>
 <footer class="site-footer" aria-label="Application credit"><span>SharePlate · A product by Achvex Ltd</span></footer>
 </body>
 </html>
