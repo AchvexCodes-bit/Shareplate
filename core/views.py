@@ -589,11 +589,13 @@ def admin_assign_pickup(request, pk):
         messages.error(request, "Only unstarted pickups can be assigned or reassigned.")
         return redirect("dashboard")
 
-    courier = get_object_or_404(
-        Courier.objects.select_related("user"),
+    courier = Courier.objects.select_related("user").filter(
         pk=request.POST.get("courier"),
         active=True,
-    )
+    ).first()
+    if not courier:
+        messages.error(request, "The selected courier is not active or does not exist.")
+        return redirect("dashboard")
     if not courier.user.memberships.filter(role="COURIER").exists():
         messages.error(request, "The selected account is not an active SharePlate courier.")
         return redirect("dashboard")
