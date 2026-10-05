@@ -263,6 +263,25 @@ def reservation_action(request, pk, action):
     if action == "accept":
         reservation.status = "ACCEPTED"
         reservation.save(update_fields=["status", "updated_at"])
+        pickup, created = Pickup.objects.get_or_create(
+            reservation=reservation,
+            defaults={
+                "source": reservation.listing.organization,
+                "destination": reservation.organization,
+                "status": "ASSIGNED",
+                "window_start": reservation.collection_window_start,
+                "window_end": reservation.collection_window_end,
+                "expected_quantity": reservation.quantity,
+            },
+        )
+        if created:
+            PickupStatusHistory.objects.create(
+                pickup=pickup,
+                from_status="",
+                to_status="ASSIGNED",
+                changed_by=request.user,
+                note="Pickup created after reservation approval.",
+            )
         notify(
             reservation.requested_by,
             "Reservation accepted",
@@ -270,7 +289,7 @@ def reservation_action(request, pk, action):
             "reservation",
             reservation.pk,
         )
-        messages.success(request, f"{reservation.reference} accepted.")
+        messages.success(request, f"{reservation.reference} accepted and pickup {pickup.reference} is ready for assignment.")
     elif action == "reject":
         listing = FoodListing.objects.select_for_update().get(pk=reservation.listing_id)
         listing.quantity_reserved = max(0, listing.quantity_reserved - reservation.quantity)
@@ -451,6 +470,9 @@ def admin_assign_pickup(request, pk):
     pickup.courier = courier
     pickup.status = "ASSIGNED"
     pickup.save(update_fields=["courier", "status", "updated_at"])
+    reservation = pickup.reservation
+    reservation.status = "PICKUP"
+    reservation.save(update_fields=["status", "updated_at"])
     PickupStatusHistory.objects.create(
         pickup=pickup, from_status="", to_status="ASSIGNED",
         changed_by=request.user, note="Assigned by admin.",
