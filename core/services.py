@@ -168,10 +168,10 @@ def transition_pickup(*, pickup_id, to_status, user, collected_quantity=None, de
     _audit_status(pickup, old_status, to_status, user, note)
 
     label = to_status.replace('_', ' ').title()
-    recipient_membership = pickup.destination.memberships.select_related('user').filter(
+    recipient_membership = pickup.destination.members.select_related('user').filter(
         role='RECIPIENT'
     ).first()
-    donor_membership = pickup.source.memberships.select_related('user').filter(
+    donor_membership = pickup.source.members.select_related('user').filter(
         role='FOOD_PARTNER'
     ).first()
 
