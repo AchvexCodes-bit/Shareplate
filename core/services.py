@@ -137,8 +137,16 @@ def cancel_reservation(*, reservation_id, user):
     reservation.save(update_fields=["status", "updated_at"])
 
     if pickup and pickup.status not in {"CANCELLED", "COMPLETED"}:
+        old_pickup_status = pickup.status
         pickup.status = "CANCELLED"
         pickup.save(update_fields=["status", "updated_at"])
+        _audit_status(
+            pickup,
+            old_pickup_status,
+            "CANCELLED",
+            user,
+            "Pickup cancelled with the reservation.",
+        )
         if pickup.courier:
             notify(
                 pickup.courier.user,
@@ -265,7 +273,7 @@ def transition_pickup(
             pickup=pickup,
             defaults={
                 "organization": pickup.source,
-                "portions": pickup.delivered_quantity,
+                "portions": pickup.delivered_quantity * listing.servings,
                 "weight_kg": weight_kg,
             },
         )
