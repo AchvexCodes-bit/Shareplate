@@ -443,7 +443,10 @@ def confirm_delivery(request, pk):
             .exists()
         )
         if not other_active_pickups:
-            listing.status = "COMPLETED"
+            if listing.remaining == 0:
+                listing.status = "COMPLETED"
+            elif listing.status in {"PUBLISHED", "PARTIAL", "FULL", "COLLECTED"}:
+                listing.status = "PUBLISHED" if listing.remaining > 0 and listing.quantity_reserved == 0 else "PARTIAL"
             listing.save(update_fields=["status", "updated_at"])
 
         DeliveryConfirmation.objects.update_or_create(
