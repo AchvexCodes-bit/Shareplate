@@ -272,3 +272,42 @@ class WorkflowTests(TestCase):
         response = self.client.get("/listings/")
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, self.listing.name)
+
+
+    def test_role_pages_render_for_recipient(self):
+        self.client.force_login(self.user)
+        for url in ["/", "/listings/", "/notifications/", "/impact/"]:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, url)
+
+    def test_courier_page_renders_for_courier(self):
+        courier_user = User.objects.create_user(username="courier_page", password="safe-password")
+        self.recipient.members.create(user=courier_user, role="COURIER")
+        Courier.objects.create(user=courier_user, vehicle_details="Demo bike")
+
+        self.client.force_login(courier_user)
+        response = self.client.get("/courier/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_reservation_accept_action_is_idempotent(self):
+        partner_user = User.objects.create_user(username="partner_manager", password="safe-password")
+        self.partner.members.create(user=partner_user, role="FOOD_PARTNER")
+
+        reservation = reserve_listing(
+            listing_id=self.listing.id,
+            organization=self.recipient,
+            user=self.user,
+            quantity=5,
+            start=self.listing.available_from,
+            end=self.listing.available_until,
+        )
+
+        self.client.force_login(partner_user)
+        first = self.client.post(f"/reservations/{reservation.id}/accept/")
+        second = self.client.post(f"/reservations/{reservation.id}/accept/")
+
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        reservation.refresh_from_db()
+        self.assertEqual(reservation.status, "ACCEPTED")
+        self.assertEqual(Pickup.objects.filter(reservation=reservation).count(), 1)
