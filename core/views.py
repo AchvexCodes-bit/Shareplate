@@ -458,7 +458,10 @@ def confirm_delivery(request, pk):
             pickup=pickup,
             defaults={
                 "organization": pickup.source,
-                "portions": delivered,
+                "portions": delivered * listing.servings,
+                "weight_kg": (
+                    delivered if listing.unit == "KILOGRAMS" else None
+                ),
             },
         )
         PickupStatusHistory.objects.create(
