@@ -79,7 +79,8 @@ def dashboard(request):
     elif role == "RECIPIENT" and org:
         context.update({
             "active_listings": FoodListing.objects.filter(
-                status__in=["PUBLISHED", "PARTIAL", "FULL"],
+                status__in=["PUBLISHED", "PARTIAL"],
+                available_from__lte=timezone.now(),
                 available_until__gt=timezone.now(),
             ).count(),
             "reservations": Reservation.objects.filter(organization=org).count(),
