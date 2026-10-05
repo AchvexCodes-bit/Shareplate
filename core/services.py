@@ -278,7 +278,10 @@ def transition_pickup(
             },
         )
         if not other_active_pickups:
-            listing.status = "COMPLETED"
+            if listing.remaining == 0:
+                listing.status = "COMPLETED"
+            else:
+                _refresh_listing_availability_status(listing)
             listing.save(update_fields=["status", "updated_at"])
 
     pickup.status = to_status
