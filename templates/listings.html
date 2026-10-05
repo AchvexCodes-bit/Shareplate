@@ -12,7 +12,7 @@
   <div><h2 style="margin:0">Available food</h2><p class="muted">Updated from live SharePlate listings.</p></div>
   {% if user.is_superuser %}<a class="btn" href="{% url 'dashboard' %}">Operations dashboard</a>{% endif %}
 </div>
-<form method="get" style="margin:18px 0"><input name="q" value="{{ request.GET.q }}" placeholder="Search food or category"><div class="actions"><button class="btn">Search food</button></div></form>
+<form method="get" style="margin:18px 0"><input name="q" value="{{ request.GET.q }}" placeholder="Search food, category, description or organization"><div class="actions"><button class="btn">Search food</button></div></form>
 <div class="grid">
 {% for item in listings %}
 <article class="card">
@@ -21,7 +21,7 @@
 <p>{{ item.description|default:"No description provided." }}</p>
 <p><b>{{ item.remaining }}</b> {{ item.get_unit_display|lower }} available · {{ item.servings }} serving{{ item.servings|pluralize }} per unit</p>
 <p class="small muted">Available until {{ item.available_until|date:"d M Y · H:i" }}</p>
-{% if user.memberships.first.role == "RECIPIENT" %}
+{% if can_reserve %}
 <form method="post" action="{% url 'reserve' item.id %}">{% csrf_token %}
 <div class="actions"><input type="number" name="quantity" min="1" max="{{ item.remaining }}" value="1" style="max-width:100px"><button class="btn">Reserve food</button></div>
 </form>
