@@ -2,7 +2,7 @@ from datetime import datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Sum, Count
+from django.db.models import Q, Sum, Count
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -11,6 +11,7 @@ from django.utils.dateparse import parse_datetime
 from .models import (
     FoodListing, Reservation, Pickup, Notification, ImpactRecord,
     Organization, FoodCategory, Courier, Complaint, PickupStatusHistory,
+    DeliveryConfirmation,
 )
 from .services import reserve_listing, transition_pickup, cancel_reservation, notify
 
@@ -18,7 +19,11 @@ from .services import reserve_listing, transition_pickup, cancel_reservation, no
 def user_role(user):
     if user.is_superuser:
         return "ADMIN"
-    return user.memberships.values_list("role", flat=True).first()
+    roles = set(user.memberships.values_list("role", flat=True))
+    for role in ("ADMIN", "COURIER", "FOOD_PARTNER", "RECIPIENT"):
+        if role in roles:
+            return role
+    return None
 
 
 def user_org(user, role=None):
@@ -119,14 +124,24 @@ def dashboard(request):
 @login_required
 def listings(request):
     qs = FoodListing.objects.select_related("organization", "category").filter(
-        status__in=["PUBLISHED", "PARTIAL", "FULL"],
+        status__in=["PUBLISHED", "PARTIAL"],
         available_from__lte=timezone.now(),
         available_until__gt=timezone.now(),
     ).order_by("available_until")
     q = request.GET.get("q", "").strip()
     if q:
-        qs = qs.filter(name__icontains=q)
-    return render(request, "listings.html", {"listings": qs[:100]})
+        qs = qs.filter(
+            Q(name__icontains=q)
+            | Q(description__icontains=q)
+            | Q(category__name__icontains=q)
+            | Q(organization__name__icontains=q)
+        )
+    can_reserve = request.user.memberships.filter(role="RECIPIENT").exists()
+    return render(
+        request,
+        "listings.html",
+        {"listings": qs[:100], "can_reserve": can_reserve},
+    )
 
 
 @login_required
@@ -149,27 +164,47 @@ def create_listing(request):
         return value or fallback
 
     try:
+        name = request.POST.get("name", "").strip()
         quantity = int(request.POST.get("quantity_listed", "0"))
         servings = int(request.POST.get("servings", "1"))
-        category = FoodCategory.objects.get(pk=int(request.POST.get("category")))
+        category = FoodCategory.objects.get(
+            pk=int(request.POST.get("category")),
+            active=True,
+        )
+        unit = request.POST.get("unit", "PORTIONS")
+        storage_condition = request.POST.get("storage_condition", "AMBIENT")
         start = dt("available_from")
         end = dt("available_until")
         preparation = dt("preparation_at", start or timezone.now())
-        if quantity <= 0 or servings <= 0 or not start or not end or start >= end:
-            raise ValueError("Enter a valid quantity, servings and availability window.")
+
+        valid_units = {value for value, _ in FoodListing.UNITS}
+        valid_storage = {value for value, _ in FoodListing.STORAGE}
+
+        if not name:
+            raise ValueError("Food name is required.")
+        if quantity <= 0 or servings <= 0:
+            raise ValueError("Quantity and servings must be greater than zero.")
+        if unit not in valid_units or storage_condition not in valid_storage:
+            raise ValueError("Choose a valid unit and storage condition.")
+        if not start or not end or start >= end:
+            raise ValueError("Enter a valid availability window.")
+        if end <= timezone.now():
+            raise ValueError("The availability window must end in the future.")
+        if preparation > end:
+            raise ValueError("Preparation time cannot be after the listing expires.")
 
         listing = FoodListing.objects.create(
             organization=org,
             category=category,
-            name=request.POST.get("name", "").strip(),
+            name=name,
             description=request.POST.get("description", "").strip(),
             quantity_listed=quantity,
-            unit=request.POST.get("unit", "PORTIONS"),
+            unit=unit,
             servings=servings,
             preparation_at=preparation,
             available_from=start,
             available_until=end,
-            storage_condition=request.POST.get("storage_condition", "AMBIENT"),
+            storage_condition=storage_condition,
             ingredients=request.POST.get("ingredients", "").strip(),
             allergens=request.POST.get("allergens", "").strip(),
             handling_instructions=request.POST.get("handling_instructions", "").strip(),
@@ -202,12 +237,16 @@ def listing_action(request, pk, action):
         return HttpResponseBadRequest("POST required")
 
     if action == "cancel":
-        if listing.quantity_reserved:
+        if listing.status not in {"PUBLISHED", "PARTIAL", "FULL"}:
+            messages.error(request, "Only active listings can be cancelled.")
+        elif listing.quantity_reserved:
             messages.error(request, "A listing with reservations cannot be cancelled here.")
         else:
             listing.status = "CANCELLED"
             listing.save(update_fields=["status", "updated_at"])
             messages.success(request, "Listing cancelled.")
+    else:
+        return HttpResponseBadRequest("Unknown action")
     return redirect("dashboard")
 
 
@@ -251,63 +290,102 @@ def reservation_action(request, pk, action):
         return denied
     if request.method != "POST":
         return HttpResponseBadRequest("POST required")
-    reservation = get_object_or_404(
-        Reservation.objects.select_related("listing", "organization", "requested_by"),
-        pk=pk,
-    )
-    if not request.user.is_superuser:
-        org = user_org(request.user, "FOOD_PARTNER")
-        if not org or reservation.listing.organization_id != org.id:
-            return HttpResponseForbidden("You cannot manage this reservation.")
 
-    if action == "accept":
-        reservation.status = "ACCEPTED"
-        reservation.save(update_fields=["status", "updated_at"])
-        pickup, created = Pickup.objects.get_or_create(
-            reservation=reservation,
-            defaults={
-                "source": reservation.listing.organization,
-                "destination": reservation.organization,
-                "status": "ASSIGNED",
-                "window_start": reservation.collection_window_start,
-                "window_end": reservation.collection_window_end,
-                "expected_quantity": reservation.quantity,
-            },
+    with transaction.atomic():
+        reservation = get_object_or_404(
+            Reservation.objects.select_for_update().select_related(
+                "listing", "organization", "requested_by"
+            ),
+            pk=pk,
         )
-        if created:
-            PickupStatusHistory.objects.create(
-                pickup=pickup,
-                from_status="",
-                to_status="ASSIGNED",
-                changed_by=request.user,
-                note="Pickup created after reservation approval.",
+
+        if not request.user.is_superuser:
+            org = user_org(request.user, "FOOD_PARTNER")
+            if not org or reservation.listing.organization_id != org.id:
+                return HttpResponseForbidden("You cannot manage this reservation.")
+
+        if action not in {"accept", "reject"}:
+            return HttpResponseBadRequest("Unknown action")
+
+        if reservation.status != "REQUESTED":
+            messages.error(
+                request,
+                f"This reservation is already {reservation.get_status_display().lower()} and cannot be changed.",
             )
-        notify(
-            reservation.requested_by,
-            "Reservation accepted",
-            f"Your reservation {reservation.reference} for {reservation.listing.name} was accepted.",
-            "reservation",
-            reservation.pk,
-        )
-        messages.success(request, f"{reservation.reference} accepted and pickup {pickup.reference} is ready for assignment.")
-    elif action == "reject":
+            return redirect("dashboard")
+
         listing = FoodListing.objects.select_for_update().get(pk=reservation.listing_id)
-        listing.quantity_reserved = max(0, listing.quantity_reserved - reservation.quantity)
-        if listing.status in {"PARTIAL", "FULL"} and listing.available_until > timezone.now():
-            listing.status = "PUBLISHED" if listing.quantity_reserved == 0 else "PARTIAL"
-        listing.save(update_fields=["quantity_reserved", "status", "updated_at"])
-        reservation.status = "REJECTED"
-        reservation.save(update_fields=["status", "updated_at"])
-        notify(
-            reservation.requested_by,
-            "Reservation declined",
-            f"Your reservation {reservation.reference} for {reservation.listing.name} was declined.",
-            "reservation",
-            reservation.pk,
-        )
-        messages.success(request, f"{reservation.reference} rejected and inventory released.")
-    else:
-        return HttpResponseBadRequest("Unknown action")
+
+        if action == "accept":
+            if timezone.now() >= listing.available_until:
+                listing.quantity_reserved = max(0, listing.quantity_reserved - reservation.quantity)
+                if listing.status in {"PARTIAL", "FULL"}:
+                    listing.status = (
+                        "PUBLISHED" if listing.quantity_reserved == 0 else "PARTIAL"
+                    )
+                listing.save(update_fields=["quantity_reserved", "status", "updated_at"])
+                reservation.status = "REJECTED"
+                reservation.save(update_fields=["status", "updated_at"])
+                notify(
+                    reservation.requested_by,
+                    "Reservation expired",
+                    f"Your reservation {reservation.reference} could not be accepted because {reservation.listing.name} is no longer available.",
+                    "reservation",
+                    reservation.pk,
+                )
+                messages.error(request, f"{reservation.reference} expired and its inventory was released.")
+                return redirect("dashboard")
+
+            reservation.status = "ACCEPTED"
+            reservation.save(update_fields=["status", "updated_at"])
+
+            pickup, created = Pickup.objects.get_or_create(
+                reservation=reservation,
+                defaults={
+                    "source": reservation.listing.organization,
+                    "destination": reservation.organization,
+                    "status": "ASSIGNED",
+                    "window_start": reservation.collection_window_start,
+                    "window_end": reservation.collection_window_end,
+                    "expected_quantity": reservation.quantity,
+                },
+            )
+            if created:
+                PickupStatusHistory.objects.create(
+                    pickup=pickup,
+                    from_status="",
+                    to_status="ASSIGNED",
+                    changed_by=request.user,
+                    note="Pickup created after reservation approval.",
+                )
+            notify(
+                reservation.requested_by,
+                "Reservation accepted",
+                f"Your reservation {reservation.reference} for {reservation.listing.name} was accepted.",
+                "reservation",
+                reservation.pk,
+            )
+            messages.success(
+                request,
+                f"{reservation.reference} accepted and pickup {pickup.reference} is ready for assignment.",
+            )
+        else:
+            listing.quantity_reserved = max(0, listing.quantity_reserved - reservation.quantity)
+            if listing.status in {"PARTIAL", "FULL"} and listing.available_until > timezone.now():
+                listing.status = (
+                    "PUBLISHED" if listing.quantity_reserved == 0 else "PARTIAL"
+                )
+            listing.save(update_fields=["quantity_reserved", "status", "updated_at"])
+            reservation.status = "REJECTED"
+            reservation.save(update_fields=["status", "updated_at"])
+            notify(
+                reservation.requested_by,
+                "Reservation declined",
+                f"Your reservation {reservation.reference} for {reservation.listing.name} was declined.",
+                "reservation",
+                reservation.pk,
+            )
+            messages.success(request, f"{reservation.reference} rejected and inventory released.")
     return redirect("dashboard")
 
 
@@ -333,7 +411,9 @@ def confirm_delivery(request, pk):
         return HttpResponseBadRequest("POST required")
 
     pickup = get_object_or_404(
-        Pickup.objects.select_related("reservation__listing", "destination", "source", "courier__user"),
+        Pickup.objects.select_related(
+            "reservation__listing", "destination", "source", "courier__user"
+        ),
         pk=pk,
     )
     org = user_org(request.user, "RECIPIENT")
@@ -355,12 +435,31 @@ def confirm_delivery(request, pk):
         reservation.save(update_fields=["status", "updated_at"])
 
         listing = reservation.listing
-        listing.status = "COMPLETED"
-        listing.save(update_fields=["status", "updated_at"])
+        other_active_pickups = (
+            Pickup.objects.filter(reservation__listing_id=listing.pk)
+            .exclude(pk=pickup.pk)
+            .exclude(status__in=["COMPLETED", "CANCELLED"])
+            .exists()
+        )
+        if not other_active_pickups:
+            listing.status = "COMPLETED"
+            listing.save(update_fields=["status", "updated_at"])
+
+        DeliveryConfirmation.objects.update_or_create(
+            pickup=pickup,
+            defaults={
+                "received_by": request.user.get_full_name() or request.user.username,
+                "received_quantity": delivered,
+                "confirmed_at": timezone.now(),
+            },
+        )
 
         ImpactRecord.objects.update_or_create(
             pickup=pickup,
-            defaults={"organization": pickup.source, "portions": delivered},
+            defaults={
+                "organization": pickup.source,
+                "portions": delivered,
+            },
         )
         PickupStatusHistory.objects.create(
             pickup=pickup,
@@ -370,9 +469,18 @@ def confirm_delivery(request, pk):
             note="Recipient confirmed delivery.",
         )
         if pickup.courier:
-            notify(pickup.courier.user, "Delivery confirmed", f"Pickup {pickup.reference} was confirmed by the recipient.", "pickup", pickup.pk)
+            notify(
+                pickup.courier.user,
+                "Delivery confirmed",
+                f"Pickup {pickup.reference} was confirmed by the recipient.",
+                "pickup",
+                pickup.pk,
+            )
 
-    messages.success(request, f"Delivery {pickup.reference} confirmed. Thank you for completing the redistribution.")
+    messages.success(
+        request,
+        f"Delivery {pickup.reference} confirmed. Thank you for completing the redistribution.",
+    )
     return redirect("dashboard")
 
 
@@ -465,20 +573,51 @@ def admin_assign_pickup(request, pk):
         return denied
     if request.method != "POST":
         return HttpResponseBadRequest("POST required")
-    pickup = get_object_or_404(Pickup, pk=pk)
-    courier = get_object_or_404(Courier, pk=request.POST.get("courier"))
+
+    pickup = get_object_or_404(
+        Pickup.objects.select_related("reservation"),
+        pk=pk,
+    )
+    if pickup.status not in {"ASSIGNED", "RESCHEDULED"}:
+        messages.error(request, "Only unstarted pickups can be assigned or reassigned.")
+        return redirect("dashboard")
+
+    courier = get_object_or_404(
+        Courier.objects.select_related("user"),
+        pk=request.POST.get("courier"),
+        active=True,
+    )
+    if not courier.user.memberships.filter(role="COURIER").exists():
+        messages.error(request, "The selected account is not an active SharePlate courier.")
+        return redirect("dashboard")
+
+    old_status = pickup.status
     pickup.courier = courier
     pickup.status = "ASSIGNED"
     pickup.save(update_fields=["courier", "status", "updated_at"])
+
     reservation = pickup.reservation
     reservation.status = "PICKUP"
     reservation.save(update_fields=["status", "updated_at"])
+
     PickupStatusHistory.objects.create(
-        pickup=pickup, from_status="", to_status="ASSIGNED",
-        changed_by=request.user, note="Assigned by admin.",
+        pickup=pickup,
+        from_status=old_status,
+        to_status="ASSIGNED",
+        changed_by=request.user,
+        note="Assigned by admin.",
     )
-    notify(courier.user, "Pickup assigned", f"Pickup {pickup.reference} has been assigned to you.", "pickup", pickup.pk)
-    messages.success(request, f"{pickup.reference} assigned to {courier.user.get_full_name() or courier.user.username}.")
+    notify(
+        courier.user,
+        "Pickup assigned",
+        f"Pickup {pickup.reference} has been assigned to you.",
+        "pickup",
+        pickup.pk,
+    )
+    messages.success(
+        request,
+        f"{pickup.reference} assigned to {courier.user.get_full_name() or courier.user.username}.",
+    )
     return redirect("dashboard")
 
 
@@ -486,15 +625,23 @@ def admin_assign_pickup(request, pk):
 def complaint_create(request):
     if request.method != "POST":
         return HttpResponseBadRequest("POST required")
+
     role = user_role(request.user)
     if role not in {"FOOD_PARTNER", "RECIPIENT", "COURIER", "ADMIN"}:
         return HttpResponseForbidden("Your role cannot submit complaints.")
-    org = user_org(request.user)
+
+    category = request.POST.get("category", "").strip()
+    description = request.POST.get("description", "").strip()
+    if not category or not description:
+        messages.error(request, "Category and description are required.")
+        return redirect("dashboard")
+
+    org = user_org(request.user, role if role != "ADMIN" else None)
     Complaint.objects.create(
         reporter=request.user,
         organization=org,
-        category=request.POST.get("category", "General").strip()[:80],
-        description=request.POST.get("description", "").strip(),
+        category=category[:80],
+        description=description,
     )
     messages.success(request, "Your issue was submitted to the SharePlate operations team.")
     return redirect("dashboard")
@@ -510,9 +657,14 @@ def complaint_action(request, pk, action):
     complaint = get_object_or_404(Complaint, pk=pk)
     if action not in {"IN_REVIEW", "ACTION_REQUIRED", "RESOLVED"}:
         return HttpResponseBadRequest("Unknown action")
+    response = request.POST.get("response", "").strip()
     complaint.status = action
-    complaint.admin_response = request.POST.get("response", "").strip()
-    complaint.save(update_fields=["status", "admin_response", "updated_at"])
+    complaint.admin_response = response
+    if action == "RESOLVED":
+        complaint.resolution = response
+        complaint.save(update_fields=["status", "admin_response", "resolution", "updated_at"])
+    else:
+        complaint.save(update_fields=["status", "admin_response", "updated_at"])
     notify(complaint.reporter, f"Complaint {action.replace('_', ' ').title()}", complaint.admin_response or "Your complaint status was updated.", "complaint", complaint.pk)
     messages.success(request, "Complaint updated.")
     return redirect("dashboard")
