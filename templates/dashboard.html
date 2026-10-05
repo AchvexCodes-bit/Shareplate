@@ -88,7 +88,7 @@
 <span class="status">{{ r.get_status_display }}</span><h3>{{ r.listing.name }}</h3>
 <p>{{ r.quantity }} {{ r.listing.get_unit_display|lower }} · {{ r.listing.organization.name }}</p>
 <p class="small muted">{{ r.reference }}</p>
-{% if r.status not in "COMPLETED,CANCELLED,REJECTED" %}
+{% if r.status == "REQUESTED" or r.status == "ACCEPTED" or r.status == "PICKUP" %}
 <form method="post" action="{% url 'cancel_reservation' r.id %}">{% csrf_token %}<button class="btn danger">Cancel reservation</button></form>
 {% endif %}
 </article>
