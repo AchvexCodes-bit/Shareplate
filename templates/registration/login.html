@@ -1,17 +1,20 @@
 {% extends "base.html" %}
+{% block title %}Sign in · SharePlate{% endblock %}
 {% block content %}
-<div class="card" style="max-width:460px;margin:50px auto">
-<h1>Sign in</h1>
+<div class="hero" style="max-width:760px;margin:25px auto -1px">
+  <div style="position:relative;z-index:1"><div class="eyebrow">SharePlate access</div><h1>Welcome back.</h1><p class="muted">One account, one role-specific workspace, and a clear view of every food handoff.</p></div>
+</div>
+<div class="card" style="max-width:500px;margin:0 auto;transform:translateY(-8px)">
+<h2>Sign in</h2>
 <p class="muted">Use your SharePlate account to open the correct role workspace.</p>
-<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn" type="submit">Sign in</button></form>
-<hr style="border:0;border-top:1px solid #eee;margin:22px 0">
-<h3>Demo accounts</h3>
-<p class="small muted">Password for all: <b>Demo@12345</b></p>
-<div class="small">
-<p><b>Admin</b> · demo_admin</p>
-<p><b>Food Partner</b> · demo_donor</p>
-<p><b>Recipient</b> · demo_recipient</p>
-<p><b>Courier</b> · demo_courier</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn" style="width:100%">Sign in</button></form>
+<hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
+<h3>Demo accounts</h3><p class="small muted">Password for all: <b>Demo@12345</b></p>
+<div class="grid" style="grid-template-columns:1fr 1fr">
+<div class="card"><b>Admin</b><p class="small muted">demo_admin</p></div>
+<div class="card"><b>Food Partner</b><p class="small muted">demo_donor</p></div>
+<div class="card"><b>Recipient</b><p class="small muted">demo_recipient</p></div>
+<div class="card"><b>Courier</b><p class="small muted">demo_courier</p></div>
 </div>
 </div>
 {% endblock %}
