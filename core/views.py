@@ -378,7 +378,7 @@ def confirm_delivery(request, pk):
 
 @login_required
 def courier_dashboard(request):
-    denied = require_role(request, "COURIER", "ADMIN")
+    denied = require_role(request, "COURIER")
     if denied:
         return denied
     try:
