@@ -125,6 +125,10 @@ class Command(BaseCommand):
         if reservation.status == "REQUESTED":
             reservation.status = "ACCEPTED"
             reservation.save(update_fields=["status"])
+        if reservation.status in {"REQUESTED", "ACCEPTED", "PICKUP"} and listing.quantity_reserved < reservation.quantity:
+            listing.quantity_reserved = reservation.quantity
+            listing.status = "FULL" if listing.quantity_reserved >= listing.quantity_listed else "PARTIAL"
+            listing.save(update_fields=["quantity_reserved", "status", "updated_at"])
 
         courier, _ = Courier.objects.get_or_create(
             user=courier_user, defaults={"vehicle_details": "Motorcycle · KL-07-DEMO-01", "active": True}
