@@ -259,14 +259,27 @@ class WorkflowTests(TestCase):
                 user=courier_user_one,
             )
 
+        self.client.force_login(self.user)
+        response = self.client.post(f"/pickups/{pickup_one.id}/confirm/")
+        self.assertEqual(response.status_code, 302)
+
         self.listing.refresh_from_db()
         self.assertNotEqual(self.listing.status, "COMPLETED")
+        self.assertEqual(self.listing.remaining, 15)
 
         self._advance_to_delivered(pickup_two, courier_user_two, 5)
-        transition_pickup(pickup_id=pickup_two.id, to_status="COMPLETED", user=courier_user_two)
+        with self.assertRaises(ValueError):
+            transition_pickup(
+                pickup_id=pickup_two.id,
+                to_status="COMPLETED",
+                user=courier_user_two,
+            )
+
+        response = self.client.post(f"/pickups/{pickup_two.id}/confirm/")
+        self.assertEqual(response.status_code, 302)
 
         self.listing.refresh_from_db()
-        self.assertEqual(self.listing.status, "PUBLISHED")
+        self.assertNotEqual(self.listing.status, "COMPLETED")
         self.assertEqual(self.listing.remaining, 10)
 
     def test_full_listing_is_not_shown_as_available(self):
