@@ -52,14 +52,18 @@
 
 <div class="section"><h2>Your listings</h2><div class="grid">{% for item in my_listings %}
 <article class="card"><span class="status">{{ item.get_status_display }}</span><h3>{{ item.name }}</h3><p>{{ item.remaining }} remaining · {{ item.quantity_reserved }} reserved</p><p class="small muted">Available until {{ item.available_until|date:"d M Y · H:i" }}</p>
-{% if item.status != "CANCELLED" and item.quantity_reserved == 0 %}<form method="post" action="{% url 'listing_action' item.id 'cancel' %}">{% csrf_token %}<button class="btn danger">Cancel listing</button></form>{% endif %}
+{% if item.status == "PUBLISHED" or item.status == "PARTIAL" or item.status == "FULL" %}{% if item.quantity_reserved == 0 %}<form method="post" action="{% url 'listing_action' item.id 'cancel' %}">{% csrf_token %}<button class="btn danger">Cancel listing</button></form>{% endif %}{% endif %}
 </article>
 {% empty %}<div class="card">No listings yet.</div>{% endfor %}</div></div>
 
 {% elif role == "RECIPIENT" %}
 <div class="section"><h2>My reservations</h2><div class="grid">{% for r in my_reservations %}
 <article class="card"><span class="status">{{ r.get_status_display }}</span><h3>{{ r.listing.name }}</h3><p>{{ r.quantity }} {{ r.listing.get_unit_display|lower }} · {{ r.listing.organization.name }}</p><p class="small muted">{{ r.reference }}</p>
-{% if r.status == "REQUESTED" or r.status == "ACCEPTED" or r.status == "PICKUP" %}<form method="post" action="{% url 'cancel_reservation' r.id %}">{% csrf_token %}<button class="btn danger">Cancel reservation</button></form>{% endif %}
+{% if r.status == "REQUESTED" or r.status == "ACCEPTED" %}
+<form method="post" action="{% url 'cancel_reservation' r.id %}">{% csrf_token %}<button class="btn danger">Cancel reservation</button></form>
+{% elif r.status == "PICKUP" and r.pickup.status == "ASSIGNED" or r.status == "PICKUP" and r.pickup.status == "ACCEPTED" or r.status == "PICKUP" and r.pickup.status == "RESCHEDULED" %}
+<form method="post" action="{% url 'cancel_reservation' r.id %}">{% csrf_token %}<button class="btn danger">Cancel reservation</button></form>
+{% endif %}
 </article>
 {% empty %}<div class="card">You have no reservations yet. <a href="{% url 'listings' %}">Browse food</a>.</div>{% endfor %}</div></div>
 
