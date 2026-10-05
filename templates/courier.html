@@ -1,1 +1,52 @@
-{% extends 'base.html' %}{% block content %}<h1>Today's pickups</h1><p class="muted">Keep each status update accurate as the food moves.</p><div class="grid">{% for p in pickups %}<article class="card"><small>{{ p.reference }}</small><h3>{{ p.reservation.listing.name }}</h3><p>{{ p.source.name }} → {{ p.destination.name }}</p><p><b>{{ p.expected_quantity }}</b> expected · {{ p.window_start|date:'H:i' }}–{{ p.window_end|date:'H:i' }}</p><p>Status: <b>{{ p.get_status_display }}</b></p>{% if p.status == 'ASSIGNED' %}<form method="post" action="{% url 'pickup_action' p.id 'accepted' %}">{% csrf_token %}<button class="btn">Accept</button></form>{% elif p.status == 'ACCEPTED' %}<form method="post" action="{% url 'pickup_action' p.id 'en_route' %}">{% csrf_token %}<button class="btn">Start pickup</button></form>{% elif p.status == 'EN_ROUTE' %}<form method="post" action="{% url 'pickup_action' p.id 'arrived' %}">{% csrf_token %}<button class="btn">Arrived</button></form>{% elif p.status == 'ARRIVED' %}<form method="post" action="{% url 'pickup_action' p.id 'collect' %}">{% csrf_token %}<input required type="number" min="1" max="{{ p.expected_quantity }}" name="quantity" placeholder="Collected quantity"><button class="btn">Collected</button></form>{% elif p.status == 'COLLECTED' %}<form method="post" action="{% url 'pickup_action' p.id 'deliver' %}">{% csrf_token %}<input required type="number" min="1" max="{{ p.collected_quantity }}" name="quantity" placeholder="Delivered quantity"><button class="btn">Delivered</button></form>{% elif p.status == 'DELIVERED' %}<form method="post" action="{% url 'pickup_action' p.id 'completed' %}">{% csrf_token %}<button class="btn">Complete</button></form>{% endif %}</article>{% empty %}<div class="card">No assigned pickups.</div>{% endfor %}</div>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
+<div><h1>Courier workspace</h1><p class="muted">Assigned → Accepted → En Route → Arrived → Collected → Delivered → Completed.</p></div>
+<span class="role">{{ courier.vehicle_details|default:"Active courier" }}</span>
+</div>
+
+<div class="grid">
+{% for p in pickups %}
+<article class="card">
+<span class="status">{{ p.get_status_display }}</span>
+<h3>{{ p.reservation.listing.name }}</h3>
+<p>{{ p.source.name }} → {{ p.destination.name }}</p>
+<p><b>{{ p.expected_quantity }}</b> expected · {{ p.window_start|date:"d M · H:i" }}–{{ p.window_end|date:"H:i" }}</p>
+
+{% if p.status == "ASSIGNED" %}
+<div class="actions">
+<form method="post" action="{% url 'pickup_action' p.id 'accepted' %}">{% csrf_token %}<button class="btn">Accept pickup</button></form>
+<form method="post" action="{% url 'pickup_action' p.id 'rescheduled' %}">{% csrf_token %}<button class="btn secondary">Reschedule</button></form>
+</div>
+{% elif p.status == "ACCEPTED" %}
+<div class="actions">
+<form method="post" action="{% url 'pickup_action' p.id 'en_route' %}">{% csrf_token %}<button class="btn">Start route</button></form>
+<form method="post" action="{% url 'pickup_action' p.id 'issue' %}">{% csrf_token %}<input name="notes" placeholder="Issue details" required><button class="btn warn">Report issue</button></form>
+</div>
+{% elif p.status == "EN_ROUTE" %}
+<div class="actions">
+<form method="post" action="{% url 'pickup_action' p.id 'arrived' %}">{% csrf_token %}<button class="btn">Mark arrived</button></form>
+<form method="post" action="{% url 'pickup_action' p.id 'issue' %}">{% csrf_token %}<input name="notes" placeholder="Issue details" required><button class="btn warn">Report issue</button></form>
+</div>
+{% elif p.status == "ARRIVED" %}
+<form method="post" action="{% url 'pickup_action' p.id 'collect' %}">
+{% csrf_token %}<div class="field"><label>Collected quantity</label><input required type="number" min="1" max="{{ p.expected_quantity }}" name="quantity"></div><button class="btn">Confirm collection</button></form>
+<form method="post" action="{% url 'pickup_action' p.id 'issue' %}" style="margin-top:8px">{% csrf_token %}<input name="notes" placeholder="Report an issue" required><button class="btn warn">Report issue</button></form>
+{% elif p.status == "COLLECTED" %}
+<form method="post" action="{% url 'pickup_action' p.id 'deliver' %}">
+{% csrf_token %}<div class="field"><label>Delivered quantity</label><input required type="number" min="1" max="{{ p.collected_quantity }}" name="quantity"></div><div class="field"><label>Delivery note</label><input name="notes" placeholder="Received by..."></div><button class="btn">Mark delivered</button></form>
+{% elif p.status == "DELIVERED" %}
+<p class="muted">Waiting for the recipient to confirm receipt.</p>
+{% elif p.status == "ISSUE" %}
+<form method="post" action="{% url 'pickup_action' p.id 'assigned' %}">{% csrf_token %}<button class="btn">Return to assigned</button></form>
+{% elif p.status == "RESCHEDULED" %}
+<form method="post" action="{% url 'pickup_action' p.id 'assigned' %}">{% csrf_token %}<button class="btn">Re-open pickup</button></form>
+{% endif %}
+
+{% if p.issue_notes %}<p class="small"><b>Latest note:</b> {{ p.issue_notes }}</p>{% endif %}
+</article>
+{% empty %}
+<div class="card"><h3>No active pickups</h3><p class="muted">New assignments will appear here.</p></div>
+{% endfor %}
+</div>
+{% endblock %}
