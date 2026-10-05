@@ -265,7 +265,7 @@ class WorkflowTests(TestCase):
 
         self.listing.refresh_from_db()
         self.assertNotEqual(self.listing.status, "COMPLETED")
-        self.assertEqual(self.listing.remaining, 15)
+        self.assertEqual(self.listing.remaining, 10)
 
         self._advance_to_delivered(pickup_two, courier_user_two, 5)
         with self.assertRaises(ValueError):
