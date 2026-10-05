@@ -233,8 +233,8 @@ def reserve(request, pk):
         messages.error(request, str(exc))
         return redirect("listings")
     notify(
-        listing.organization.memberships.select_related("user").filter(role="FOOD_PARTNER").first().user
-        if listing.organization.memberships.filter(role="FOOD_PARTNER").exists() else request.user,
+        listing.organization.members.select_related("user").filter(role="FOOD_PARTNER").first().user
+        if listing.organization.members.filter(role="FOOD_PARTNER").exists() else request.user,
         "New reservation request",
         f"{request.user.get_full_name() or request.user.username} requested {reservation.quantity} from {listing.name}.",
         "reservation",
@@ -452,7 +452,7 @@ def admin_organization_action(request, pk, action):
     else:
         return HttpResponseBadRequest("Unknown action")
     org.save(update_fields=["verification_status", "active", "updated_at"])
-    for membership in org.memberships.select_related("user"):
+    for membership in org.members.select_related("user"):
         notify(membership.user, f"Organization {org.verification_status.lower()}", f"{org.name} is now {org.verification_status.lower()}.")
     messages.success(request, message)
     return redirect("dashboard")
