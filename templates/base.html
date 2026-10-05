@@ -24,7 +24,6 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #d9d6cc;border-ra
 {% if user.is_authenticated %}
 <a href="{% url 'dashboard' %}">Dashboard</a>
 <a href="{% url 'listings' %}">Food</a>
-{% if user.memberships.all|length %}{% endif %}
 {% if user.is_superuser %}<a href="{% url 'dashboard' %}">Operations</a>{% endif %}
 {% with role=user.memberships.first.role %}
 {% if role == 'COURIER' or user.is_superuser %}<a href="{% url 'courier' %}">Courier</a>{% endif %}
